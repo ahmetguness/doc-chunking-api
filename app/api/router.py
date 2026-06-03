@@ -21,6 +21,7 @@ from app.schemas.response import (
     ModelsResponse,
     ProcessResponse,
 )
+from app.services.api_embedding import ApiEmbeddingEngine
 from app.services.chunker import Chunker
 from app.services.embedding import EmbeddingEngine
 from app.services.file_processor import FileProcessor
@@ -38,10 +39,40 @@ logger = logging.getLogger(__name__)
 _defaults = APP_CONFIG["default_values"]
 
 # ---------------------------------------------------------------------------
+# Embedding backend selection (fixed at deploy time via EMBEDDING_MODE)
+# ---------------------------------------------------------------------------
+_EMBEDDING_MODE = (settings.EMBEDDING_MODE or "local").strip().lower()
+_IS_CLOUD = _EMBEDDING_MODE == "cloud"
+
+
+def _default_model_name() -> str:
+    """Resolve the active embedding model name for this deployment."""
+    if _IS_CLOUD:
+        return settings.EMBEDDING_API_MODEL or next(iter(EMBEDDING_MODELS))
+    return settings.MODEL_NAME or next(iter(EMBEDDING_MODELS))
+
+
+def _tokenizer_id_for(model_name: str) -> str:
+    """Resolve which tokenizer to use for chunk sizing."""
+    return settings.TOKENIZER_ID or model_name
+
+
+# ---------------------------------------------------------------------------
 # Module-level service instances
 # ---------------------------------------------------------------------------
 model_manager = ModelManager()
-embedding_engine = EmbeddingEngine(model_manager)
+if _IS_CLOUD:
+    embedding_engine = ApiEmbeddingEngine()
+    logger.info(
+        "Embedding backend: CLOUD (model=%s, base_url=%s)",
+        settings.EMBEDDING_API_MODEL, settings.EMBEDDING_API_BASE_URL,
+    )
+else:
+    embedding_engine = EmbeddingEngine(model_manager)
+    logger.info(
+        "Embedding backend: LOCAL (model=%s, device=%s)",
+        _default_model_name(), settings.EMBEDDING_DEVICE,
+    )
 file_processor = FileProcessor()
 table_processor = TableProcessor()
 text_normalizer = TextNormalizer()
@@ -96,8 +127,9 @@ async def _process_single_file(
     # Step 1: Parse file → list[FileContent]
     file_contents = file_processor.process(file_bytes, filename, zip_password)
 
-    # Step 2: Get tokenizer for chunking / table processing
-    tokenizer = await model_manager.get_tokenizer(model_name)
+    # Step 2: Get tokenizer for chunking / table processing.
+    # In cloud mode this loads ONLY the tokenizer (no model weights).
+    tokenizer = await model_manager.get_tokenizer(_tokenizer_id_for(model_name))
 
     all_chunks = []
     for fc in file_contents:
@@ -195,17 +227,11 @@ async def process_documents(
             detail=f"Maksimum {settings.MAX_FILES} dosya yüklenebilir",
         )
 
-    # Default model name: first key in EMBEDDING_MODELS
+    # Default model name: the deployment's active model.
     if model_name is None:
-        model_name = next(iter(EMBEDDING_MODELS))
-
-    # Validate model name early
-    if model_name not in EMBEDDING_MODELS:
-        supported = list(EMBEDDING_MODELS.keys())
-        raise HTTPException(
-            status_code=400,
-            detail=f"Desteklenmeyen model: '{model_name}'. Desteklenen modeller: {supported}",
-        )
+        model_name = _default_model_name()
+    # Models are validated at deploy time (against OpenRouter in cloud mode,
+    # HuggingFace in local mode), so request-time names are accepted as-is.
 
     max_bytes = settings.MAX_FILE_SIZE_MB * 1024 * 1024
     start_time = time.time()

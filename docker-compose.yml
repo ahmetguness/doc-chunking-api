@@ -19,6 +19,16 @@ services:
       - REQUEST_TIMEOUT_SECONDS=${REQUEST_TIMEOUT_SECONDS:-1800}
       - CONCURRENCY_ACQUIRE_TIMEOUT=${CONCURRENCY_ACQUIRE_TIMEOUT:-180}
       - CUDA_VISIBLE_DEVICES=${CUDA_VISIBLE_DEVICES:-0}
+      # Embedding backend (set by setup.py)
+      - EMBEDDING_MODE=${EMBEDDING_MODE:-local}
+      - EMBEDDING_DEVICE=${EMBEDDING_DEVICE:-auto}
+      - MODEL_NAME=${MODEL_NAME:-}
+      - TOKENIZER_ID=${TOKENIZER_ID:-}
+      - EMBEDDING_API_BASE_URL=${EMBEDDING_API_BASE_URL:-https://openrouter.ai/api/v1}
+      - EMBEDDING_API_MODEL=${EMBEDDING_API_MODEL:-}
+      - EMBEDDING_API_KEY=${EMBEDDING_API_KEY:-}
+      - HF_TOKEN=${HF_TOKEN:-}
+      - CHUNKING_AUTH_TOKEN=${CHUNKING_AUTH_TOKEN:-}
     volumes:
       - model-cache:/home/appuser/.cache/huggingface
     deploy:

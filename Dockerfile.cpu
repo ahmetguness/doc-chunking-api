@@ -10,7 +10,13 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 COPY requirements.txt .
-RUN pip install --no-cache-dir --prefix=/install -r requirements.txt
+# Install CPU-only torch first from the CPU wheel index so the CUDA wheels
+# (multi-GB) are NOT pulled in. PYTHONPATH makes the second pip detect the
+# already-installed torch in the prefix and skip re-resolving it from PyPI.
+RUN pip install --no-cache-dir --prefix=/install \
+       torch torchvision --index-url https://download.pytorch.org/whl/cpu \
+    && PYTHONPATH=/install/lib/python3.11/site-packages \
+       pip install --no-cache-dir --prefix=/install -r requirements.txt
 
 # Production stage
 FROM python:3.11-slim

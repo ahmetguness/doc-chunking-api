@@ -114,15 +114,22 @@ APP_CONFIG: dict = {
 def get_model_config(model_name: str) -> dict:
     """Return the configuration dict for the given model name.
 
-    Raises:
-        ValueError: If model_name is not found in EMBEDDING_MODELS.
+    If the model is present in the built-in EMBEDDING_MODELS registry, its
+    rich config (prefixes, max_length, dimension) is returned. Otherwise a
+    permissive default config is returned so that user-provided models
+    (validated at deploy time against OpenRouter / HuggingFace) still work.
     """
-    if model_name not in EMBEDDING_MODELS:
-        supported = list(EMBEDDING_MODELS.keys())
-        raise ValueError(
-            f"Unsupported model: '{model_name}'. Supported models: {supported}"
-        )
-    return EMBEDDING_MODELS[model_name]
+    if model_name in EMBEDDING_MODELS:
+        return EMBEDDING_MODELS[model_name]
+    return {
+        "model_id": model_name,
+        "max_length": 512,
+        "language": "unknown",
+        "description": "User-provided model (not in built-in registry)",
+        "dimension": None,
+        "query_prefix": "",
+        "passage_prefix": "",
+    }
 
 
 class Settings(BaseSettings):
@@ -138,21 +145,73 @@ class Settings(BaseSettings):
     REQUEST_TIMEOUT_SECONDS: int = 1800
     CONCURRENCY_ACQUIRE_TIMEOUT: int = 30
 
+    # ------------------------------------------------------------------
+    # Embedding backend selection (chosen at deploy time via setup wizard)
+    # ------------------------------------------------------------------
+    # EMBEDDING_MODE: "local" (run model on this service) or "cloud"
+    # (use a remote OpenAI-compatible embeddings API such as OpenRouter).
+    EMBEDDING_MODE: str = "local"
+    # EMBEDDING_DEVICE: "auto" | "cpu" | "gpu"/"cuda" (only used in local mode).
+    EMBEDDING_DEVICE: str = "auto"
+    # Active model for local mode (HuggingFace repo id or registry key).
+    MODEL_NAME: str = ""
+    # Tokenizer used for chunking. In cloud mode this is the HuggingFace repo
+    # whose tokenizer matches the remote embedding model. Falls back to
+    # MODEL_NAME / EMBEDDING_API_MODEL when empty.
+    TOKENIZER_ID: str = ""
+
+    # Cloud mode: OpenAI-compatible embeddings API (OpenRouter by default).
+    EMBEDDING_API_BASE_URL: str = "https://openrouter.ai/api/v1"
+    EMBEDDING_API_KEY: str = ""
+    EMBEDDING_API_MODEL: str = ""
+    EMBEDDING_API_TIMEOUT: int = 60
+
+    # HuggingFace token for gated/private tokenizers or models.
+    HF_TOKEN: str = ""
+
     model_config = {"env_prefix": ""}
 
 
 settings = Settings()
 
 
-def get_device() -> str:
-    """GPU zorunlu. GPU yoksa servis başlamaz."""
+def get_device(prefer: str | None = None) -> str:
+    """Resolve the torch device string based on EMBEDDING_DEVICE.
+
+    Args:
+        prefer: Optional override for the configured device. Accepts
+            "auto", "cpu", "gpu", or "cuda".
+
+    Returns:
+        "cuda" or "cpu".
+
+    Raises:
+        RuntimeError: If "cuda"/"gpu" is explicitly requested but no CUDA
+            device (or PyTorch) is available.
+    """
+    mode = (prefer or settings.EMBEDDING_DEVICE or "auto").strip().lower()
+    if mode == "gpu":
+        mode = "cuda"
+
     try:
         import torch
-        if not torch.cuda.is_available():
+        cuda_available = torch.cuda.is_available()
+    except ImportError:
+        if mode == "cuda":
             raise RuntimeError(
-                "GPU bulunamadı. Chunking servisi GPU gerektirir. "
-                "CUDA destekli bir ortamda çalıştırın."
+                "GPU istendi ancak PyTorch yüklü değil. CUDA destekli bir "
+                "ortamda çalıştırın veya EMBEDDING_DEVICE=cpu kullanın."
+            )
+        return "cpu"
+
+    if mode == "cpu":
+        return "cpu"
+    if mode == "cuda":
+        if not cuda_available:
+            raise RuntimeError(
+                "GPU istendi ancak CUDA bulunamadı. EMBEDDING_DEVICE=cpu "
+                "kullanın veya CUDA destekli bir ortamda çalıştırın."
             )
         return "cuda"
-    except ImportError:
-        raise RuntimeError("PyTorch yüklü değil. GPU kontrolü yapılamıyor.")
+    # auto
+    return "cuda" if cuda_available else "cpu"

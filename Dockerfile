@@ -34,9 +34,9 @@ COPY app/ ./app/
 ENV NVIDIA_VISIBLE_DEVICES=all
 ENV NVIDIA_DRIVER_CAPABILITIES=compute,utility
 
-EXPOSE ${API_PORT:-8000}
+EXPOSE 8000
 
 HEALTHCHECK --interval=120s --timeout=5s --start-period=300s --retries=3 \
-    CMD curl -sf http://localhost:${API_PORT:-8001}/health || exit 1
+    CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')" || exit 1
 
-CMD ["sh", "-c", "python -m uvicorn app.main:app --host 0.0.0.0 --port ${API_PORT:-8000} --workers ${WORKERS:-1}"]
+CMD ["sh", "-c", "python -m uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers ${WORKERS:-1}"]
