@@ -4,6 +4,13 @@ FastAPI service for document chunking and sentence-transformer embeddings. It is
 
 The API accepts files, extracts text or tabular content, creates tokenizer-aware chunks, and optionally returns normalized embedding vectors.
 
+## Live Demo
+
+A hosted version with a web interface is available at
+[chunkingservice.com](https://chunkingservice.com). Sign up to try the chunking
+and embedding pipeline directly in the browser; each account includes a few free
+runs. The demo runs `BAAI/bge-m3` in cloud mode.
+
 ## Supported Inputs
 
 | Type | Notes |
@@ -17,7 +24,13 @@ The API accepts files, extracts text or tabular content, creates tokenizer-aware
 
 ## Runtime Note
 
-The current implementation requires CUDA when `/process` loads a model or tokenizer. `Dockerfile.cpu` and `docker-compose.cpu.yml` exist, but `app.config.get_device()` raises an error if CUDA is unavailable. In practice, use the GPU Docker setup for processing requests.
+The service supports three backends, selected at deploy time via `EMBEDDING_MODE`:
+
+- `local` with `EMBEDDING_DEVICE=gpu` runs the model on a CUDA GPU for the fastest throughput.
+- `local` with `EMBEDDING_DEVICE=cpu` runs the model on CPU, with no GPU required.
+- `cloud` calls a remote OpenAI-compatible embeddings API (OpenRouter by default). No model weights are downloaded. Only a lightweight tokenizer is fetched from HuggingFace for chunk sizing.
+
+The easiest way to configure all of this is the interactive setup wizard (`python setup.py`). It validates your model against OpenRouter (cloud) or HuggingFace (local), collects the required keys, downloads the tokenizer, and writes a ready-to-run `.env`.
 
 ## Features
 
@@ -29,6 +42,7 @@ The current implementation requires CUDA when `/process` loads a model or tokeni
 - Row-level CSV and Excel chunking.
 - Optional row metadata attachment for tabular files.
 - BGE and E5 query/passage prefix support.
+- Local (CPU or GPU) or cloud embedding backends, selected at deploy time.
 - Model caching through `ModelManager`.
 - JSON, base64 NPY, and ZIP response formats.
 - Bearer token authentication through `CHUNKING_AUTH_TOKEN`.
@@ -37,12 +51,30 @@ The current implementation requires CUDA when `/process` loads a model or tokeni
 
 ## Quick Start
 
-Start the GPU service:
+Run the interactive setup wizard, then start the service:
 
 ```bash
-cp .env.example .env
+python setup.py
+```
+
+The wizard asks for the backend (`local` or `cloud`), the model name, the
+required tokens, and, for local mode, `cpu` or `gpu`. It then writes `.env` and
+prints the exact compose command to run. Examples:
+
+Local GPU or cloud:
+
+```bash
 docker compose up -d --build
 ```
+
+Local CPU:
+
+```bash
+docker compose -f docker-compose.cpu.yml up -d --build
+```
+
+You can also configure `.env` by hand from `.env.example` instead of using the
+wizard.
 
 With the provided `.env`, the service is available at:
 
@@ -95,7 +127,7 @@ Common form parameters:
 | Parameter | Default | Description |
 | --- | --- | --- |
 | `files` | Required | One or more uploaded files. |
-| `model_name` | First configured model | Model key from `app/config.py`. |
+| `model_name` | First configured model | Model key from `app/config.py`, or any HuggingFace / OpenRouter model id valid for the active backend. |
 | `normalization` | `none` | `none`, `lowercase`, or `uppercase`. |
 | `max_tokens` | `512` | Maximum tokens per chunk. |
 | `overlap` | `100` | Approximate token overlap between chunks. |
@@ -158,6 +190,19 @@ Returns service status, active request count, waiting request count, and loaded 
 | `e5-base-v2` | 768 | 512 | English |
 | `e5-large-v2` | 1024 | 512 | English |
 
+### Recommended: BAAI/bge-m3 for Turkish
+
+In our testing, `BAAI/bge-m3` gives the best results for Turkish and other
+multilingual content, and it is the model we run in production.
+
+One caveat with Turkish: the model is case sensitive, so it treats `Ahmet` and
+`ahmet` as different tokens, which can hurt retrieval quality. For Turkish
+workloads we get better and more consistent results by lowercasing the text
+before chunking, using `normalization=lowercase` on the `/process` request.
+
+Note that Turkish lowercasing has its own edge cases (for example the dotted/
+dotless `I`), so apply it deliberately rather than as a blanket default.
+
 For Turkish or multilingual workloads, `BAAI/bge-m3` and `multilingual-e5-large` are the most relevant starting points.
 
 ## Configuration
@@ -180,6 +225,14 @@ The service reads settings from environment variables. Docker Compose loads `.en
 | `PRELOAD_MODELS` | Empty | Comma-separated model keys loaded at startup. |
 | `CHUNKING_AUTH_TOKEN` | Empty | Bearer token. Empty means auth is disabled. |
 | `CUDA_VISIBLE_DEVICES` | Runtime-dependent | Visible CUDA device selection. |
+| `EMBEDDING_MODE` | `local` | Backend selection: `local` or `cloud`. |
+| `EMBEDDING_DEVICE` | `auto` | Local device: `auto`, `cpu`, or `gpu`. |
+| `MODEL_NAME` | Empty | Active model id for local mode. |
+| `TOKENIZER_ID` | Empty | Tokenizer repo used for chunk sizing. Defaults to the model id. |
+| `EMBEDDING_API_BASE_URL` | OpenRouter URL | Base URL for the cloud embeddings API. |
+| `EMBEDDING_API_MODEL` | Empty | Remote model id used in cloud mode. |
+| `EMBEDDING_API_KEY` | Empty | API key for the cloud embeddings provider. |
+| `HF_TOKEN` | Empty | HuggingFace token for gated models or tokenizers. |
 
 Example:
 
@@ -206,7 +259,7 @@ Upload files
   -> TextNormalizer / TableProcessor
   -> Chunker
   -> ModelManager
-  -> EmbeddingEngine
+  -> EmbeddingEngine (local) or ApiEmbeddingEngine (cloud)
   -> ResponseFormatter
 ```
 
@@ -220,6 +273,7 @@ Main modules:
 | `app/services/table_processor.py` | Converts tables into row-level chunks. |
 | `app/services/model_manager.py` | Loads and caches models/tokenizers. |
 | `app/services/embedding.py` | Generates embeddings. |
+| `app/services/api_embedding.py` | Generates embeddings through a remote OpenAI-compatible API. |
 | `app/services/response_formatter.py` | Builds JSON, base64 NPY, and ZIP responses. |
 | `app/middleware/*` | Handles file size checks, timeouts, and errors. |
 
