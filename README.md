@@ -4,6 +4,13 @@ FastAPI service for document chunking and sentence-transformer embeddings. It is
 
 The API accepts files, extracts text or tabular content, creates tokenizer-aware chunks, and optionally returns normalized embedding vectors.
 
+## Live Demo
+
+A hosted version with a web interface is available at
+[chunkingservice.com](https://chunkingservice.com). Sign up to try the chunking
+and embedding pipeline directly in the browser; each account includes a few free
+runs. The demo runs `BAAI/bge-m3` in cloud mode.
+
 ## Supported Inputs
 
 | Type | Notes |
@@ -182,6 +189,19 @@ Returns service status, active request count, waiting request count, and loaded 
 | `multilingual-e5-large` | 1024 | 512 | Multilingual |
 | `e5-base-v2` | 768 | 512 | English |
 | `e5-large-v2` | 1024 | 512 | English |
+
+### Recommended: BAAI/bge-m3 for Turkish
+
+In our testing, `BAAI/bge-m3` gives the best results for Turkish and other
+multilingual content, and it is the model we run in production.
+
+One caveat with Turkish: the model is case sensitive, so it treats `Ahmet` and
+`ahmet` as different tokens, which can hurt retrieval quality. For Turkish
+workloads we get better and more consistent results by lowercasing the text
+before chunking, using `normalization=lowercase` on the `/process` request.
+
+Note that Turkish lowercasing has its own edge cases (for example the dotted/
+dotless `I`), so apply it deliberately rather than as a blanket default.
 
 For Turkish or multilingual workloads, `BAAI/bge-m3` and `multilingual-e5-large` are the most relevant starting points.
 
