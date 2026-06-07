@@ -1,4 +1,4 @@
-"""Embedding engine service for generating vector embeddings from text chunks.
+﻿"""Embedding engine service for generating vector embeddings from text chunks.
 
 Uses SentenceTransformer models via ModelManager to produce embeddings
 in batches, returning results as a numpy ndarray.  Supports instruction
@@ -42,7 +42,7 @@ class EmbeddingEngine:
             chunks: List of Chunk objects to embed.
             model_name: Key in EMBEDDING_MODELS config.
             batch_size: Number of chunks to encode per batch.
-            prefix_mode: Which prefix to prepend — ``"passage"`` for
+            prefix_mode: Which prefix to prepend - ``"passage"`` for
                 document indexing (default) or ``"query"`` for search
                 queries.  Only affects models that define non-empty
                 prefixes (e.g. BGE, E5).

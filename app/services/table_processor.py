@@ -1,4 +1,4 @@
-"""CSV/Excel row-based table processor."""
+﻿"""CSV/Excel row-based table processor."""
 
 import logging
 from typing import Optional
@@ -57,7 +57,7 @@ class TableProcessor:
         df = df.dropna(axis=1, how="all")
         columns = [str(c) for c in df.columns]
 
-        # str_df'i bir kez oluştur — hem filtre hem _build_all_row_texts kullanır
+        # str_df'i bir kez oluştur - hem filtre hem _build_all_row_texts kullanır
         str_df = df.fillna("").astype(str)
 
         # Tamamen boş string satırları kaldır
@@ -66,11 +66,11 @@ class TableProcessor:
         str_df = str_df[str_mask].reset_index(drop=True)
 
         if df.empty:
-            logger.warning("TableProcessor: %s — tüm satırlar boş", filename)
+            logger.warning("TableProcessor: %s - tüm satırlar boş", filename)
             return []
 
         logger.info(
-            "TableProcessor: %s — %d satır × %d kolon işlenecek",
+            "TableProcessor: %s - %d satır × %d kolon işlenecek",
             filename, len(df), len(columns),
         )
 
@@ -127,7 +127,7 @@ class TableProcessor:
                 chunks.append(chunk)
                 chunk_index += 1
             else:
-                # Büyük satır — ratio ile hızlı split
+                # Büyük satır - ratio ile hızlı split
                 estimated_tokens = max(1, int(text_len / char_token_ratio))
 
                 if estimated_tokens <= max_tokens:
@@ -255,7 +255,7 @@ class TableProcessor:
                 texts = [t.strip() for t in texts]
             return texts, str_df
 
-        # numpy array — iloc yerine direkt erişim
+        # numpy array - iloc yerine direkt erişim
         values_array = str_df.values
 
         texts = []

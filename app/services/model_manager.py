@@ -1,4 +1,4 @@
-"""Model management service for loading, caching, and serving embedding models.
+﻿"""Model management service for loading, caching, and serving embedding models.
 
 Manages SentenceTransformer models and AutoTokenizer instances with
 async-safe caching and lazy/preload strategies.
@@ -84,7 +84,7 @@ class ModelManager:
 
         In local mode, if the full model for this id is already cached we
         reuse its tokenizer. Otherwise (e.g. cloud mode) only the lightweight
-        tokenizer files are downloaded — never the model weights.
+        tokenizer files are downloaded - never the model weights.
 
         Args:
             tokenizer_id: HuggingFace repo id or built-in registry key.

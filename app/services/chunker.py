@@ -1,4 +1,4 @@
-"""Sentence-boundary-aware text chunker for Turkish and English."""
+﻿"""Sentence-boundary-aware text chunker for Turkish and English."""
 
 import bisect
 import re
@@ -270,7 +270,7 @@ class Chunker:
         if pos > start:
             return pos
 
-        # No space found between start and target — search forward
+        # No space found between start and target - search forward
         pos = target
         while pos < len(text) and text[pos] != " ":
             pos += 1

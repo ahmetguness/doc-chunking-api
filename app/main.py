@@ -1,4 +1,4 @@
-"""FastAPI application startup, lifespan, middleware and logging configuration."""
+﻿"""FastAPI application startup, lifespan, middleware and logging configuration."""
 
 import logging
 from contextlib import asynccontextmanager
@@ -43,7 +43,7 @@ app.add_exception_handler(Exception, global_exception_handler)
 # Router
 app.include_router(router)
 
-# Logging setup — connect StructuredFormatter to root logger
+# Logging setup - connect StructuredFormatter to root logger
 handler = logging.StreamHandler()
 handler.setFormatter(StructuredFormatter())
 logging.root.addHandler(handler)

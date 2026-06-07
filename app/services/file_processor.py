@@ -1,4 +1,4 @@
-"""File processor service for reading PDF, DOCX, TXT, CSV, Excel and ZIP files."""
+﻿"""File processor service for reading PDF, DOCX, TXT, CSV, Excel and ZIP files."""
 
 import io
 import logging
@@ -40,7 +40,7 @@ class InvalidFileError(FileProcessingError):
     """Raised when a file is corrupt or cannot be parsed."""
 
     def __init__(self, filename: str, reason: str = ""):
-        detail = f" — {reason}" if reason else ""
+        detail = f" - {reason}" if reason else ""
         super().__init__(
             message=f"Cannot read file: '{filename}'{detail}",
             error_code="INVALID_FILE",
@@ -165,7 +165,7 @@ class FileProcessor:
     def _read_docx(self, data: bytes, filename: str) -> str:
         """Extract text from a DOCX file using python-docx.
 
-        Reads both paragraphs and table cells — handles Resmi Gazete
+        Reads both paragraphs and table cells - handles Resmi Gazete
         style documents where all content lives inside tables.
         """
         try:
@@ -177,7 +177,7 @@ class FileProcessor:
                 if p.text and p.text.strip():
                     parts.append(p.text)
 
-            # 2. Tablo hücreleri — paragraflar boşsa veya tablolarda ek içerik varsa
+            # 2. Tablo hücreleri - paragraflar boşsa veya tablolarda ek içerik varsa
             seen: set[str] = set(parts)  # duplikasyon önleme
             for table in doc.tables:
                 for row in table.rows:
@@ -225,7 +225,7 @@ class FileProcessor:
                 df = pd.read_excel(io.BytesIO(data), engine="xlrd")
                 if len(df) > app_settings.MAX_TABLE_ROWS:
                     raise TooManyRowsError(filename, len(df), app_settings.MAX_TABLE_ROWS)
-                logger.info("xls read: %s — %d satır × %d kolon", filename, len(df), len(df.columns))
+                logger.info("xls read: %s - %d satır × %d kolon", filename, len(df), len(df.columns))
                 return df
         except (InvalidFileError, TooManyRowsError):
             raise
@@ -243,7 +243,7 @@ class FileProcessor:
             try:
                 ws = wb.active
                 logger.info(
-                    "xlsx read: %s — ws.max_row=%s, ws.max_column=%s",
+                    "xlsx read: %s - ws.max_row=%s, ws.max_column=%s",
                     filename, ws.max_row, ws.max_column,
                 )
                 rows = []
@@ -263,20 +263,20 @@ class FileProcessor:
                         consecutive_empty += 1
                         if consecutive_empty >= max_consecutive_empty:
                             logger.info(
-                                "xlsx read: %s — %d ardışık boş satır, okuma durduruluyor (satır %d)",
+                                "xlsx read: %s - %d ardışık boş satır, okuma durduruluyor (satır %d)",
                                 filename, max_consecutive_empty, i,
                             )
                             break
                         continue
 
-                    # Minimum anlamlı hücre filtresi — tek bir "0", " - " vb. içeren
+                    # Minimum anlamlı hücre filtresi - tek bir "0", " - " vb. içeren
                     # artık satırları ele (consecutive_empty sayacını sıfırlamasın)
                     non_empty = sum(1 for c in row if c is not None and str(c).strip())
                     if non_empty < min_filled_cells:
                         consecutive_empty += 1
                         if consecutive_empty >= max_consecutive_empty:
                             logger.info(
-                                "xlsx read: %s — %d ardışık boş/anlamsız satır, okuma durduruluyor (satır %d)",
+                                "xlsx read: %s - %d ardışık boş/anlamsız satır, okuma durduruluyor (satır %d)",
                                 filename, max_consecutive_empty, i,
                             )
                             break
@@ -297,7 +297,7 @@ class FileProcessor:
 
             df = df.dropna(how="all").reset_index(drop=True)
             logger.info(
-                "xlsx read: %s — %d satır × %d kolon okundu",
+                "xlsx read: %s - %d satır × %d kolon okundu",
                 filename, len(df), len(df.columns),
             )
             return df
@@ -311,7 +311,7 @@ class FileProcessor:
         """Read CSV trying multiple encodings with auto-separator detection."""
         import csv
 
-        # UTF-16 BOM kontrolü — UTF-16 dosyalarda her karakter arasında \x00 olur,
+        # UTF-16 BOM kontrolü - UTF-16 dosyalarda her karakter arasında \x00 olur,
         # NUL temizleme yapısını bozar, bu yüzden önce UTF-8'e dönüştür.
         if data[:2] in (b'\xff\xfe', b'\xfe\xff'):
             try:
@@ -361,7 +361,7 @@ class FileProcessor:
                     raise TooManyRowsError(filename, len(df), max_rows)
 
                 logger.info(
-                    "csv read: %s — %d satır × %d kolon okundu (enc=%s, sep=%r)",
+                    "csv read: %s - %d satır × %d kolon okundu (enc=%s, sep=%r)",
                     filename, len(df), len(df.columns), enc, sep,
                 )
                 return df
