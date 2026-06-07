@@ -124,7 +124,7 @@ async def _process_single_file(
     attach_context_on_split: bool,
 ) -> dict:
     """Run the full pipeline for a single file and return a result dict."""
-    # Step 1: Parse file → list[FileContent]
+    # Step 1: Parse file  list[FileContent]
     file_contents = file_processor.process(file_bytes, filename, zip_password)
 
     # Step 2: Get tokenizer for chunking / table processing.
@@ -218,7 +218,7 @@ async def process_documents(
     min_rows_for_table: Optional[int] = Form(default=_defaults.get("min_rows_for_table")),
     attach_context_on_split: bool = Form(default=_defaults.get("attach_context_on_split", True)),
 ) -> JSONResponse | StreamingResponse:
-    """Process uploaded documents: read → normalize → chunk → embed → format."""
+    """Process uploaded documents: read  normalize  chunk  embed  format."""
 
     # MAX_FILES check
     if len(files) > settings.MAX_FILES:
@@ -267,7 +267,7 @@ async def process_documents(
                 # Re-raise HTTP exceptions (e.g. file size) without partial failure
                 raise
             except asyncio.TimeoutError:
-                # ConcurrencyLimiter timeout → 429
+                # ConcurrencyLimiter timeout  429
                 raise
             except Exception as exc:
                 # Partial failure: record error, continue with other files
@@ -321,7 +321,7 @@ async def process_documents(
             },
         )
     except asyncio.TimeoutError:
-        # ConcurrencyLimiter acquire timeout → 429
+        # ConcurrencyLimiter acquire timeout  429
         return JSONResponse(
             status_code=429,
             content={

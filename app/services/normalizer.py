@@ -13,7 +13,7 @@ class TextNormalizer:
     """Text normalization service.
 
     Handles:
-    1. NBSP and narrow NBSP → regular space
+    1. NBSP and narrow NBSP  regular space
     2. Zero-width characters and BOM removal
     3. Newline normalization (trim spaces around newlines)
     4. Collapse multiple spaces/tabs to single space
